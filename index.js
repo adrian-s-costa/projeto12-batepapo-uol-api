@@ -42,12 +42,12 @@ app.post("/participants", async (req, res) => {
 
         if (users.length === 0 && !validation.error){
             
-            dbUsers.insertOne({
+            await dbUsers.insertOne({
                 name: userName.name,
                 lastStatus: Date.now()
             })
 
-            dbMessages.insertOne({
+            await dbMessages.insertOne({
                 from: userName.name,
                 to: "Todos",
                 text: "entra na sala...",
@@ -57,7 +57,7 @@ app.post("/participants", async (req, res) => {
             
             const messages = await dbMessages.find().toArray();
 
-            console.log(messages)
+            console.log(messages);
 
             const users = await dbUsers.find({
                 name: userName.name
@@ -65,11 +65,11 @@ app.post("/participants", async (req, res) => {
             
             console.log(users);
 
-            res.status(201).send();
+            res.sendStatus(201);
 
         }else{
             console.log("teste 409");
-            res.status(409).send();
+            res.sendStatus(409);
         }
     }
     catch(error){
@@ -83,11 +83,81 @@ app.get("/participants", async (req, res)=>{
         const users = await dbUsers.find({}).toArray();
 
         res.send(users);
-        mongoClient.close();
+        
     }catch{
-        res.status(500).send();
-        mongoClient.close();
+        res.sendStatus(500);
     }
+})
+
+app.post("/messages", async (req, res) => {
+
+    const message = {
+        from: req.headers.user,
+        to: req.body.to,
+        text: req.body.text,
+        type: req.body.type,
+        time: dayjs().format('HH:mm:ss')
+    }
+
+    const userSchema = joi.object({
+        from: joi.string().required(),
+        to: joi.string().required(),
+        text: joi.string().required(),
+        type: joi.string().required(),
+        time: joi.string().required()
+    })
+
+    const validation = userSchema.validate(message);
+
+    if (validation.error) {
+        console.log(validation.error.details);
+    }
+
+    try{
+        
+        const dbMessages = await dbM.collection("messages")
+
+        if (!validation.error){
+
+            await dbMessages.insertOne({
+                from: message.from,
+                to: message.to,
+                text: message.text,
+                type: message.type,
+                time: message.time
+            });
+
+            res.sendStatus(201)
+
+        }else{
+            res.sendStatus(409)
+        }
+    }
+    catch(error){
+        console.log(error)
+    }
+})
+
+app.get("/messages", async (req, res)=>{
+    const limit = parseInt(req.query.limit);
+    const user = req.headers.user;
+
+    try {
+        const dbMessages = await dbM.collection("messages")
+        const messages = await dbMessages.find({}).sort({_id: -1}).limit(limit).toArray();
+
+        const messagesFiltered = messages.filter((message)=>{
+            if (message.to === user || message.from === user || message.type !== "private_message" ){
+                return message;
+            }
+        })
+
+        res.send(messagesFiltered.reverse())
+
+    }catch{
+        res.sendStatus(500);
+    }
+
 })
 
 app.listen(5000);
