@@ -3,7 +3,7 @@ import cors from 'cors';
 import { MongoClient } from 'mongodb';
 import dotenv from 'dotenv';
 import joi from "joi";
-import { abort } from 'process';
+import dayjs from "dayjs";
 
 dotenv.config();
 const app = express();
@@ -12,26 +12,13 @@ app.use(express.json());
 
 const mongoClient = new MongoClient(process.env.URL_CONNECT_MONGO);
 let db;
+let dbM;
 
 mongoClient.connect().then(() => {
 	db = mongoClient.db("users");
+    dbM = mongoClient.db("messages");
 })
 
-app.get("/", async (req, res) => {
-	
-    try{
-        await mongoClient.connect();
-        const dbUsers = db.collection("users");
-        const users = await dbUsers.find({}).toArray();
-        
-        res.send(users);
-        mongoClient.close();
-    }catch(error){
-        res.status(500);
-        mongoClient.close();
-    }
-    
-});
 
 app.post("/participants", async (req, res) => {
     
@@ -48,12 +35,11 @@ app.post("/participants", async (req, res) => {
     }
 
     try{
-        const dbUsers = db.collection("users");
+        const dbUsers = await db.collection("users");
+        const dbMessages = await dbM.collection("messages")
         const users = await dbUsers.find({
             name: userName.name
         }).toArray();
-
-        console.log(users.length)
 
         if (users.length === 0 && !validation.error){
             
@@ -61,9 +47,21 @@ app.post("/participants", async (req, res) => {
                 name: userName.name,
                 lastStatus: Date.now()
             })
+
+            dbMessages.insertOne({
+                from: userName.name,
+                to: "Todos",
+                text: "entra na sala...",
+                type: "status",
+                time: dayjs().format('HH:mm:ss')
+            })
             
             res.status(201).send();
             
+            const messages = await dbMessages.find().toArray();
+
+            console.log(messages)
+
             const users = await dbUsers.find({
                 name: userName.name
             }).toArray();
