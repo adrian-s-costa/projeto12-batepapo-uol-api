@@ -19,7 +19,6 @@ mongoClient.connect().then(() => {
     dbM = mongoClient.db("messages");
 })
 
-
 app.post("/participants", async (req, res) => {
     
     const userName = req.body;
@@ -56,8 +55,6 @@ app.post("/participants", async (req, res) => {
                 time: dayjs().format('HH:mm:ss')
             })
             
-            res.status(201).send();
-            
             const messages = await dbMessages.find().toArray();
 
             console.log(messages)
@@ -68,6 +65,8 @@ app.post("/participants", async (req, res) => {
             
             console.log(users);
 
+            res.status(201).send();
+
         }else{
             console.log("teste 409");
             res.status(409).send();
@@ -75,6 +74,19 @@ app.post("/participants", async (req, res) => {
     }
     catch(error){
         console.log(error)
+    }
+})
+
+app.get("/participants", async (req, res)=>{
+    try{
+        const dbUsers = await db.collection("users");
+        const users = await dbUsers.find({}).toArray();
+
+        res.send(users);
+        mongoClient.close();
+    }catch{
+        res.status(500).send();
+        mongoClient.close();
     }
 })
 
