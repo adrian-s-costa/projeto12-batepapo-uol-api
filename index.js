@@ -13,6 +13,7 @@ app.use(express.json());
 const mongoClient = new MongoClient(process.env.URL_CONNECT_MONGO);
 let db;
 let dbM;
+let userSession;
 
 mongoClient.connect().then(() => {
 	db = mongoClient.db("users");
@@ -73,7 +74,7 @@ app.post("/participants", async (req, res) => {
         }
     }
     catch(error){
-        console.log(error)
+        console.log(error);
     }
 })
 
@@ -127,14 +128,14 @@ app.post("/messages", async (req, res) => {
                 time: message.time
             });
 
-            res.sendStatus(201)
+            res.sendStatus(201);
 
         }else{
-            res.sendStatus(409)
+            res.sendStatus(409);
         }
     }
     catch(error){
-        console.log(error)
+        console.log(error);
     }
 })
 
@@ -152,12 +153,56 @@ app.get("/messages", async (req, res)=>{
             }
         })
 
-        res.send(messagesFiltered.reverse())
+        res.send(messagesFiltered.reverse());
 
     }catch{
         res.sendStatus(500);
     }
-
 })
+
+app.post("/status", async (req, res)=>{
+    userSession = req.headers.user;
+
+    try{
+        const dbUsers = await db.collection("users"); 
+        const consultaUser = await dbUsers.findOne({name: userSession});
+
+        if(!consultaUser){
+            res.sendStatus(404);
+        }
+
+        await dbUsers.updateOne(
+            {name: userSession}, 
+            {$set: {lastStatus: Date.now()}
+        })
+
+        res.sendStatus(201);
+        
+    }catch{
+        res.sendStatus(500);
+    }
+})
+
+setInterval(async () =>{
+    const dbUsers = await db.collection("users"); 
+    const dbMessages = await dbM.collection("messages");
+    const todosUsers = await dbUsers.find({}).toArray();
+    todosUsers.map( async (user)=>{
+        if ((Date.now() - user.lastStatus) > 10000){
+            try{
+                await dbUsers.deleteOne({name: user.name})
+                await dbMessages.insertOne({
+                    from: user.name,
+                    to: "Todos",
+                    text: "sai da sala...",
+                    type: "status",
+                    time: dayjs().format('HH:mm:ss')
+                });
+            }catch(error){
+                console.log(error);
+            }
+        }
+    }) 
+}, 15000)
 
 app.listen(5000);
