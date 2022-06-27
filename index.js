@@ -176,10 +176,10 @@ app.post("/status", async (req, res)=>{
             {$set: {lastStatus: Date.now()}
         })
 
-        res.sendStatus(201);
+        res.sendStatus(200);
         
     }catch{
-        res.sendStatus(500);
+        res.sendStatus(404);
     }
 })
 
